@@ -35,7 +35,13 @@ angular.module("app", [])
 
    $scope.commandVoice = function (command)
    {
-      var command = "voice:" + command.replace(/ +/g, '').replace(/of\b/g, 'off');
+     console.warn("original command", command);
+      // Filter mispellings
+      var commandraw = command.replace(/\b.*ight.*\b/g, "lights").replace(/of\b/g, 'off').replace(/ +/g, '');
+      var command = "voice:" + commandraw;
+
+
+      console.warn("commandVoice", command, commandraw);
 
       return $http.get("/rest/arduino/com4/" + command)
       .then(function(response)
