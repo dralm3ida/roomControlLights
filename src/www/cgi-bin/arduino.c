@@ -72,7 +72,7 @@ if(!SetCommTimeouts(hSerial, &timeouts)){
 
    if ( 0 == res )
    {
-      char  request = 0, response[50];
+      unsigned char  request = 0, response[50];
       char  isVoiceCommand = 0;
       char  ultrasound[8] = {0};
       char  temperature = 0;

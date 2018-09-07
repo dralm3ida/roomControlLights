@@ -12,8 +12,8 @@ angular.module("app", [])
 .controller("main", ["$scope", "$http", function ($scope, $http)
 {
    $scope.sensors = {p:null
-      , ultrasound: [3,55,222,111,33,99,250,20]
-      , ultrasoundr: [55,100,55,100,55,100,55,100]
+      , ultrasound: [0,0,0,0,0,0,0,0]
+      , ultrasoundr: [0,0,0,0,0,0,0,0]
       , light: 0
       , pir: 0
    };// endof ::sensors
