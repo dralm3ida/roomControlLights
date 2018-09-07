@@ -89,9 +89,13 @@ if(!SetCommTimeouts(hSerial, &timeouts)){
             request = SERIAL_COMMAND_VOICE_LIGHTSON1;
          }else if ( 0 == strcmp("lightsoffgroup1", command + 6) ){
             request = SERIAL_COMMAND_VOICE_LIGHTSOFF1;
+         }else if ( 0 == strcmp("lightsofgroup1", command + 6) ){
+            request = SERIAL_COMMAND_VOICE_LIGHTSOFF1;
          }else if ( 0 == strcmp("lightsongroup2", command + 6) ){
             request = SERIAL_COMMAND_VOICE_LIGHTSON2;
          }else if ( 0 == strcmp("lightsoffgroup2", command + 6) ){
+            request = SERIAL_COMMAND_VOICE_LIGHTSOFF2;
+         }else if ( 0 == strcmp("lightsofgroup2", command + 6) ){
             request = SERIAL_COMMAND_VOICE_LIGHTSOFF2;
          }else{
             res = -1;
