@@ -1,3 +1,5 @@
+#include <Ethernet.h>
+#include <EthernetUdp.h>
 #include <Wire.h>
 #include <stdint.h>
 
@@ -8,8 +10,17 @@ const uint8_t I2C_PACKET_SIZE = NUM_OF_SENSORS + 1;
 // The number of measurements from each sensor to filter
 const uint8_t MEASUREMENTS_TO_FILTER = 5;
 const uint8_t INT_PIN = 19;
-// The max valid variance in a set of MEASUREMENTS_TO_FILTER measurements
-const unsigned int VARIANCE_THRESHOLD = 3;
+const unsigned int VARIANCE_THRESHOLD = 5;// The max valid variance in a set of MEASUREMENTS_TO_FILTER measurements
+
+
+//
+byte mac[] = {  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+IPAddress ip(192, 168, 2, 2);
+IPAddress ipDest(192, 168, 2, 254);
+uint8_t localPort = 8888;      // local port to listen on
+uint8_t destPort = 8888;      // local port to listen on
+EthernetUDP Udp;
+
 
 // Sonic Disc's operational states
 enum State {
@@ -121,6 +132,10 @@ void filterMeasurements() {
 
 void setup() {
   Wire.begin();
+  Ethernet.init(10);  // Most Arduino shields
+  Ethernet.begin(mac, ip);
+  Udp.begin(localPort);
+
   Serial.begin(9600);
   attachInterrupt(digitalPinToInterrupt(INT_PIN), newSonicDiscData, RISING);
   Serial.println("Requesting packet from SonicDisc");
@@ -134,6 +149,7 @@ void setup() {
 }
 
 void loop() {
+  Serial.println("newData");
   if (newData) {
     newData = false; // Indicate that we have read the latest data
 
@@ -158,15 +174,21 @@ void loop() {
     }
   }
 
- if (newFilteredMeasurements) {
+  if (newFilteredMeasurements) {
+    //    mensagem='\0';
     newFilteredMeasurements = false;
+    Udp.beginPacket(ipDest, destPort);
     // Print the measurements nicely
     Serial.print("S");
     for (int i = 0; i < NUM_OF_SENSORS; i++) {
       Serial.print(",");
       Serial.print(filteredMeasurements[i]);
+      Udp.write(filteredMeasurements[i]);
     }
     Serial.println(",");
+    Udp.endPacket();
+
   }
-  
+
+
 }
