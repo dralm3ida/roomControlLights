@@ -8,11 +8,14 @@
 unsigned char g_ultraSoundValues[] = {100, 20, 30, 48, 50, 68, 170, 89}; // 8 sensors, each one with range 0-256
 unsigned char g_lightSensor = 1;
 unsigned char g_pirSensor = 1;
+unsigned char g_light_one_state = LOW;
+unsigned char g_light_two_state = LOW;
+
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x01
 };
 IPAddress ip(192, 168, 2, 254);
-unsigned int portUltrasound = 8888; 
+unsigned int portUltrasound = 8888;
 EthernetUDP Udp;
 
 void setup() {
@@ -69,19 +72,19 @@ void loop() {
         Serial.write(incomingByte);
         break;
       case SERIAL_COMMAND_VOICE_LIGHTSON1:
-        digitalWrite(PIN_LIGHTS_GROUP1, HIGH);
+        digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = HIGH);
         Serial.write(incomingByte);
         break;
       case SERIAL_COMMAND_VOICE_LIGHTSOFF1:
-        digitalWrite(PIN_LIGHTS_GROUP1, LOW);
+        digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = LOW);
         Serial.write(incomingByte);
         break;
       case SERIAL_COMMAND_VOICE_LIGHTSON2:
-        digitalWrite(PIN_LIGHTS_GROUP2, HIGH);
+        digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = HIGH);
         Serial.write(incomingByte);
         break;
       case SERIAL_COMMAND_VOICE_LIGHTSOFF2:
-        digitalWrite(PIN_LIGHTS_GROUP2, LOW);
+        digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = LOW);
         Serial.write(incomingByte);
         break;
     }
@@ -89,7 +92,7 @@ void loop() {
 /*
     Serial.print("I received: ");
     Serial.println(incomingByte, DEC);
-    
+
 */
     digitalWrite(LED_BUILTIN, HIGH);
   }
