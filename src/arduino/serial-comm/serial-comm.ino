@@ -3,9 +3,9 @@
 #define PIN_LIGHTS_GROUP1   2
 #define PIN_LIGHTS_GROUP2   3
 
-char g_ultraSoundValues[] = {1, 2, 3, 4, 5, 6, 7, 8}; // 8 sensors, each one with range 0-256
-char g_lightSensor = 1;
-char g_pirSensor = 1;
+unsigned char g_ultraSoundValues[] = {100, 20, 30, 48, 50, 68, 170, 89}; // 8 sensors, each one with range 0-256
+unsigned char g_lightSensor = 1;
+unsigned char g_pirSensor = 1;
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
