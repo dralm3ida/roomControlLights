@@ -1,3 +1,5 @@
+#include <Ethernet.h>
+#include <EthernetUdp.h>
 #include "commands.h"
 
 #define PIN_LIGHTS_GROUP1   2
@@ -6,6 +8,12 @@
 unsigned char g_ultraSoundValues[] = {100, 20, 30, 48, 50, 68, 170, 89}; // 8 sensors, each one with range 0-256
 unsigned char g_lightSensor = 1;
 unsigned char g_pirSensor = 1;
+byte mac[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x01
+};
+IPAddress ip(192, 168, 2, 254);
+unsigned int portUltrasound = 8888; 
+EthernetUDP Udp;
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -14,11 +22,21 @@ void setup() {
   Serial.begin(9600);
   digitalWrite(PIN_LIGHTS_GROUP1, LOW);
   digitalWrite(PIN_LIGHTS_GROUP2, LOW);
+
+  Ethernet.init(10);
+  Ethernet.begin(mac, ip);
+  Udp.begin(portUltrasound);
 }
 
 void loop() {
+  int packetSize = Udp.parsePacket();
   int incomingByte = 0;
-  
+
+  Serial.print("serial ");
+  Serial.print(Serial.available());
+  Serial.print(", ultrasound ");
+  Serial.print(packetSize);
+  Serial.println("");
   digitalWrite(LED_BUILTIN, LOW);
   if ( Serial.available() > 0 )
   {
@@ -73,9 +91,14 @@ void loop() {
     Serial.println(incomingByte, DEC);
     
 */
-    Serial.flush();
     digitalWrite(LED_BUILTIN, HIGH);
-    delay(500);
   }
-
+  else if ( packetSize >= 8 )
+  {
+    Udp.read(g_ultraSoundValues, 8);
+    Serial.print("Contents: ");
+    Serial.println(packetSize);
+  }
+  Serial.flush();
+  delay(10);
 }

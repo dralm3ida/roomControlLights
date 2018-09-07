@@ -35,15 +35,37 @@ angular.module("app", [])
 
    $scope.commandVoice = function (command)
    {
-     console.warn("original command", command);
+      console.warn("original command", command);
       // Filter mispellings
-      var commandraw = command.replace(/\b.*ight.*\b/g, "lights").replace(/of\b/g, 'off').replace(/ +/g, '');
-      var command = "voice:" + commandraw;
+      var commandraw = command
+         .replace(/[^ ]*ight[^ ]*/ig, "lights")
+         .replace(/of\b/ig, 'off')
+         .replace(/what's/ig, 'lights')
+         .replace(/\bone\b/ig, '1')
+         .replace(/\bgroupon\b/gi, 'group1')
+         .replace(/\btwo\b/ig, '2')
+         .replace(/ +/ig, '');
 
+      if ( !/^charl.*/gi.test(commandraw) ){ return; }
+      console.warn("after replace", commandraw);
+      if ( 0 ){}
+      else if ( /.*on.*light.*group.*1/ig.test(commandraw) ){ commandraw = "lightsongroup1"; }
+      else if ( /.*light.*on.*group.*1/ig.test(commandraw) ){ commandraw = "lightsongroup1"; }
+      else if ( /.*of.*light.*group.*1/ig.test(commandraw) ){ commandraw = "lightsoffgroup1"; }
+      else if ( /.*light.*of.*group.*1/ig.test(commandraw) ){ commandraw = "lightsoffgroup1"; }
+      else if ( /.*on.*light.*group.*2/ig.test(commandraw) ){ commandraw = "lightsongroup2"; }
+      else if ( /.*light.*on.*group.*2/ig.test(commandraw) ){ commandraw = "lightsongroup2"; }
+      else if ( /.*of.*light.*group.*2/ig.test(commandraw) ){ commandraw = "lightsoffgroup2"; }
+      else if ( /.*light.*of.*group.*2/ig.test(commandraw) ){ commandraw = "lightsoffgroup2"; }
+      else if ( /.*on.*light.*/ig.test(commandraw) ){ commandraw = "lightson"; }
+      else if ( /.*light.*on.*/ig.test(commandraw) ){ commandraw = "lightson"; }
+      else if ( /.*of.*light.*/ig.test(commandraw) ){ commandraw = "lightsoff"; }
+      else if ( /.*light.*of.*/ig.test(commandraw) ){ commandraw = "lightsoff"; }
+      var command = "voice:" + commandraw;
 
       console.warn("commandVoice", command, commandraw);
 
-      return $http.get("/rest/arduino/com4/" + command)
+      return $http.get("/rest/arduino/com4/" + angular.lowercase(command))
       .then(function(response)
       {
          console.warn("response", response);
@@ -107,25 +129,28 @@ angular.module("app", [])
       }// endof ::postLink
    }
 }])
-.directive("mySpeechRecognition", ["$parse", "$interval", function ($parse, $interval)
+.directive("mySpeechRecognition", ["$parse", "$interval", "$timeout", function ($parse, $interval, $timeout)
 {
 
    return{p:null
       , scope: true
-      , template: "<button class='btn btn-primary' data-ng-click='toggle()' data-ng-disabled='!isLoaded()'>{{ data.label }}</button><label>{{ command }}</label><iframe style='display:none' src='/voice/speech' allow='microphone'></iframe>"
+      , template: "<button class='btn btn-primary' data-ng-click='toggle()' data-ng-disabled='!isLoaded()'>{{ data.label }}</button>"+
+                  //"<button class='btn btn-default' data-ng-click='clear()'>clear</button>"+
+                  "<label>{{ command }}</label><iframe style='display:none' src='/voice/speech' allow='microphone'></iframe>"
       , compile: function (tElement, tAttrs)
       {
          var fnSettings = $parse(tAttrs.mySpeechRecognition);
 
          return function postLink ($scope, $element, $attrs, $controllers)
          {
-            var iFrameWindow = null, iFrameDocument = null;
+            var iFrameWindow = null, iFrameDocument = null, iFrameLog = null;
             var settings = fnSettings($scope.$parent);
             var iframe = $element.find('iframe');
+            var lastProcessedText = '', lastDetection = '';
             var iFrameBtnStart = null;
             var iFrameContents = null;
             var listener = null;
-            var text = '';
+            var timeout = null;
 
             var startListening = function ()
             {
@@ -136,20 +161,64 @@ angular.module("app", [])
                   if ( !iFrameContents )
                   {
                      iFrameContents = iFrameDocument.querySelector("div.ql-editor > p");
+                     iFrameLog = iFrameDocument.querySelector("p.log > span");
+                     console.warn("load", iFrameLog);
                   }
-                  mytext = iFrameContents.innerHTML;
-                  if ( (mytext != text) && (mytext != '<br>') )
+                  if ( !!iFrameLog && timeout && (lastDetection != iFrameLog.innerHTML) )
                   {
-                     $scope.command = angular.lowercase(mytext.replace(text, ''));
-                     text = mytext;
-                     settings.callback($scope.command);
+                     console.warn("cancel timeout 1", lastDetection, iFrameLog.innerHTML);
+                     lastDetection = iFrameLog.innerHTML;
+                     $timeout.cancel(timeout);
                   }
-                  if ( 'shut down' == $scope.command )
+                  if ( !!iFrameContents )
                   {
-                     $scope.toggle();
+                     mytext = iFrameContents.innerHTML;
+                     mytext = ('<br>' == mytext)?(''):(mytext);
+                     if ( lastProcessedText != mytext )
+                     {
+                        lastProcessedText = mytext;
+                        iFrameWindow.dictation('clear');
+                        reloadMicro();
+                        if ( '' != mytext )
+                        {
+                           $scope.command = mytext;
+                        }
+                        settings.callback($scope.command);
+                        //console.warn("mytext", mytext, lastProcessedText);
+                        if ( timeout )
+                        {
+                           console.warn("cancel timeout 2", lastDetection, iFrameLog.innerHTML);
+                           $timeout.cancel(timeout);
+                        }
+                        timeout = $timeout(reloadMicro, 5000);
+                     }
+                     /*
+                     if ( (mytext != text) && (mytext != '<br>') )
+                     {
+                        $scope.command = angular.lowercase(mytext.replace(text, ''));
+                        text = mytext;
+                        settings.callback($scope.command);
+                     } 
+                     */ 
                   }
-               }, 500);
+               }, 100);
             };// endof ::startListening
+
+            var reloadMicro = function ()
+            {
+               if ( listener )
+               {
+                  //iFrameWindow.dictation('clear');
+                  //text = '';
+                  iFrameBtnStart.click();
+                  $timeout(function(){
+                     iFrameBtnStart.click();
+                     //$timeout(reloadMicro, 30000);
+                     iFrameContents = iFrameDocument.querySelector("div.ql-editor > p");
+                     iFrameLog = iFrameDocument.querySelector("p.log > span");
+                  }, 500);
+               }
+            };// endof ::reloadMicro
 
             iframe.bind('load', function ()
             {
@@ -170,17 +239,18 @@ angular.module("app", [])
                {
                   iFrameWindow.dictation('clear');
                   iFrameBtnStart.click();
-                  startListening();
                   $scope.data.label = 'stop';
-                  myBtn.removeClass('btn-primary');
-                  myBtn.addClass('btn-danger');
+                  myBtn.eq(0).removeClass('btn-primary');
+                  myBtn.eq(0).addClass('btn-danger');
+                  startListening();
+                  //$timeout(reloadMicro, 30000);
                }
                else
                {
                   $scope.data.label = 'start';
                   iFrameContents = null;
-                  myBtn.removeClass('btn-danger');
-                  myBtn.addClass('btn-primary');
+                  myBtn.eq(0).removeClass('btn-danger');
+                  myBtn.eq(0).addClass('btn-primary');
                   $interval.cancel(listener);
                   listener = null;
                   iFrameWindow.dictation('clear');
@@ -192,6 +262,14 @@ angular.module("app", [])
             {
                return !!iFrameWindow;
             };// endof ::isLoaded
+
+
+            /*
+            $scope.clear = function ()
+            {
+               iFrameWindow.dictation('clear');
+            };// endof ::clear
+            */
 
          };// endof ::postLink
       }// endof ::compile
