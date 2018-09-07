@@ -17,7 +17,6 @@ angular.module("app", [])
       , pir: 0
    };// endof ::sensors
 
-
    $scope.loadSensors = function ()
    {
       return $http.get("/rest/arduino/com4/all")
@@ -45,6 +44,45 @@ angular.module("app", [])
    };// endof ::commandVoice
 
 
+}])
+.directive("myRadar", ["$interval", function ($interval)
+{
+   return{p:null
+      , link: function ($scope, $element, $attrs, $controllers)
+      {
+         var listener = null;
+         var angle = 0;
+
+         listener = $interval(function()
+         {
+            $element[0].setAttribute("transform", "rotate(" + angle + ")");
+            angle += 1;
+         }, 15);// endof ::$interval
+         
+      }// endof ::postLink
+   }
+}])
+.directive("myPoints", ["$interval", function ($interval)
+{
+   return{p:null
+      , require: ["ngModel"]
+      , link: function ($scope, $element, $attrs, $controllers)
+      {
+         var points = $element.find("circle");
+         var ngModel = $controllers[0];
+         var data = null;
+
+         (function()
+         {
+            ngModel.$formatters.push(function($modelValue)
+            {
+               data = $modelValue;
+               return $modelValue;
+            });
+         }());
+         console.warn("ngModel", ngModel);
+      }// endof ::postLink
+   }
 }])
 .directive("mySpeechRecognition", ["$parse", "$interval", function ($parse, $interval)
 {
