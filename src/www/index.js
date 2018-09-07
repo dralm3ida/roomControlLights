@@ -12,7 +12,8 @@ angular.module("app", [])
 .controller("main", ["$scope", "$http", function ($scope, $http)
 {
    $scope.sensors = {p:null
-      , ultrasound: [0,0,0,0,0,0,0,0]
+      , ultrasound: [3,55,222,111,33,99,250,20]
+      , ultrasoundr: [55,100,55,100,55,100,55,100]
       , light: 0
       , pir: 0
    };// endof ::sensors
@@ -58,12 +59,26 @@ angular.module("app", [])
             $element[0].setAttribute("transform", "rotate(" + angle + ")");
             angle += 1;
          }, 15);// endof ::$interval
-         
+
       }// endof ::postLink
    }
 }])
 .directive("myPoints", ["$interval", function ($interval)
 {
+   var nsensors = 8;
+   var rx = null, ry = null;
+   var centerx = 250;
+   var centery = 250;
+
+   var calculateReferencePoints = function (distance, points){
+      for ( var i = 0, leni = points.length; i < leni; ++i ){
+         rx = centerx + (250-distance[i])*Math.cos(i*(Math.PI/4));
+         ry = centery - (250-distance[i])*Math.sin(i*(Math.PI/4));
+         points[i].setAttribute("cx", rx);
+         points[i].setAttribute("cy", ry);
+      }
+   }
+
    return{p:null
       , require: ["ngModel"]
       , link: function ($scope, $element, $attrs, $controllers)
@@ -77,6 +92,8 @@ angular.module("app", [])
             ngModel.$formatters.push(function($modelValue)
             {
                data = $modelValue;
+               console.warn("myPoints: ", data);
+               calculateReferencePoints(data, points);
                return $modelValue;
             });
          }());
