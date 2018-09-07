@@ -1,0 +1,30 @@
+{
+    "interactionModel": {
+        "languageModel": {
+            "invocationName": "control lights",
+            "intents": [
+                {
+                    "name": "SwitchLightOn",
+                    "slots": [],
+                    "samples": [
+                        "SwitchLightOn turn the lights on",
+                        "SwitchLightOn switch the lights on",
+                        "SwitchLightOn switch lights on",
+                        "SwitchLightOn lights on"
+                    ]
+                },
+                {
+                    "name": "SwitchLightOff",
+                    "slots": [],
+                    "samples": [
+                        "SwitchLightOff turn the lights off",
+                        "SwitchLightOff switch the lights off",
+                        "SwitchLightOff switch lights off",
+                        "SwitchLightOff lights off"
+                    ]
+                }
+            ],
+            "types": []
+        }
+    }
+}
