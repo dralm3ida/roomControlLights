@@ -10,11 +10,15 @@ unsigned char g_lightSensor = 1;
 unsigned char g_pirSensor = 1;
 unsigned char g_light_one_state = LOW;
 unsigned char g_light_two_state = LOW;
+byte g_init = 0;
 
 byte mac[] = {
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x01
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xEE
 };
 IPAddress ip(192, 168, 2, 254);
+IPAddress gw(192, 168, 2, 1);
+IPAddress mk(255, 255, 255, 0);
+IPAddress ipUltrasound(192, 168, 2, 2);
 unsigned int portUltrasound = 8888;
 EthernetUDP Udp;
 
@@ -34,6 +38,12 @@ void setup() {
 void loop() {
   int packetSize = Udp.parsePacket();
   int incomingByte = 0;
+
+  if ( 0 == g_init )
+  {
+    //Udp.begin(portUltrasound);
+    g_init = 1;
+  }
 
   Serial.print("serial ");
   Serial.print(Serial.available());
@@ -96,9 +106,9 @@ void loop() {
 */
     digitalWrite(LED_BUILTIN, HIGH);
   }
-  else if ( packetSize >= 8 )
+  else if ( (packetSize >= 8) )
   {
-    Udp.read(g_ultraSoundValues, 8);
+    packetSize = Udp.read(g_ultraSoundValues, 8);
     Serial.print("Contents: ");
     Serial.println(packetSize);
   }
