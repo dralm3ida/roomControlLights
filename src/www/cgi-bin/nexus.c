@@ -61,7 +61,7 @@ int main (void)
    int sock;
    char message[MAXMSG];
    struct sockaddr_in name;
-   int size;
+   int size, i = 0;
    int nbytes;
    WORD wVersionRequested;
     WSADATA wsaData; 
@@ -73,6 +73,7 @@ int main (void)
 
    /* Make the socket, then loop endlessly. */
    sock = make_named_socket (SERVER, 8888);
+   fflush(NULL);
    while (1)
    {
       /* Wait for a datagram. */
@@ -84,14 +85,21 @@ int main (void)
          exit (EXIT_FAILURE);
       } 
       /* Give a diagnostic message. */
-      fprintf (stderr, "Server: got message: %s\n", message);
+      printf("Server: got message: %d\n", nbytes);
+      if ( nbytes ){
+         for ( i = 0; i < nbytes; i++ ){
+            printf("%02X", message[i] & 0xFF);
+         }
+      }
+      printf("\n");
       /* Bounce the message back to the sender. */
-      nbytes = sendto (sock, message, nbytes, 0, (struct sockaddr *) & name, size);
+      nbytes = sendto (sock, message, nbytes, 0, (struct sockaddr *)&name, size);
       if (nbytes < 0)
       {
          perror ("sendto (server)");
          exit (EXIT_FAILURE);
       }
+      fflush(NULL);
    }
    WSACleanup();
 }
