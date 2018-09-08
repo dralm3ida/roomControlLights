@@ -1,0 +1,103 @@
+start_charlie:
+Welcome to Charlie;
+
+while(true)
+{
+  call Process audio;
+  call Process sensors;
+}
+
+
+function Process(voice, sensors) 
+{
+  
+  
+}
+
+
+function Process audio 
+{
+  Hear audio;
+  Process audio;
+  if(Means anything)
+  {
+    call Control system audio;
+  }
+  else
+  {
+    Exit;
+  }
+}
+
+function Process sensors 
+{
+  Check System status;
+  if(ON)
+  {
+    Get data;
+    if(Timer expired?)
+    {
+      Process;
+    }
+    else
+    {
+      Do nothing;
+    }
+  }
+}
+
+function Control system audio (command) 
+{
+  Check System status;
+  if(ON)
+  {
+    if(Charlie Shut down)
+    {
+      Stop sensors;
+    }
+    else
+    {
+      call Control lights audio;
+    }
+  }
+  else(Charlie Wakeup)
+  {
+    Star sensors;
+  }
+  
+}
+
+function Control lights audio
+{
+  if(Turn lights on)
+  {
+    Turn lights on;
+  }
+  else if(Turn lights off)
+  {
+    Turn lights off;
+    Init Timer;
+  }
+  else if(Turn lights on group 1)
+  {
+    Turn group 1 on;
+  }
+  else if(Turn lights on group 2)
+  {
+    Turn group 2 on;
+  }
+  else if(Turn lights off group 1)
+  {
+    Turn group 1 off;
+    Init Timer;
+  }
+  else if(Turn lights off group 2)
+  {
+    Turn group 2 off;
+    Init Timer;
+  }
+  
+}
+
+
+
