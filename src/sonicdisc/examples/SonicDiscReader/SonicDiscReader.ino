@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <stdint.h>
 
+
 const uint8_t SONIC_DISC_I2C_ADDRESS = 0x09;
 const uint8_t NUM_OF_SENSORS = 8; // No. of ultrasonic sensors on SonicDisc
 // The packet contains NUM_OF_MEASUREMENTS measurements and an error code
@@ -10,15 +11,22 @@ const uint8_t I2C_PACKET_SIZE = NUM_OF_SENSORS + 1;
 // The number of measurements from each sensor to filter
 const uint8_t MEASUREMENTS_TO_FILTER = 5;
 const uint8_t INT_PIN = 19;
-const unsigned int VARIANCE_THRESHOLD = 5;// The max valid variance in a set of MEASUREMENTS_TO_FILTER measurements
+const unsigned int VARIANCE_THRESHOLD = 10;// The max valid variance in a set of MEASUREMENTS_TO_FILTER measurements
 
+//LDR sensor
+const uint8_t LDRpin = A11;
+uint16_t sensorValueLDR = 0;  // variable to store the value coming from the sensor
 
 //
 byte mac[] = {  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 IPAddress ip(192, 168, 2, 2);
+IPAddress gateway(192, 168, 2, 1);
+IPAddress submask(255, 255, 255, 0);
 IPAddress ipDest(192, 168, 2, 254);
-uint8_t localPort = 8888;      // local port to listen on
-uint8_t destPort = 8888;      // local port to listen on
+uint16_t localPort = 8888;      // local port to listen on
+uint16_t destPort = 8888;      // local port to listen on
+
+
 EthernetUDP Udp;
 
 
@@ -111,6 +119,40 @@ void sortMeasurements() {
 }
 
 /*
+   read and filter of ldr
+   kalman filter
+*/
+uint16_t ldrSensor() {
+
+
+
+
+  const int numReadings = 10;
+
+  int readings[numReadings];      // the readings from the analog input
+  int readIndex = 0;              // the index of the current reading
+  int total = 0;                  // the running total
+  int average = 0;                // the average
+
+  total = total - readings[readIndex];
+  // read from the sensor:
+  readings[readIndex] = analogRead( LDRpin );
+  // add the reading to the total:
+  total = total + readings[readIndex];
+  // advance to the next position in the array:
+  readIndex ++;
+
+  // if we're at the end of the array...
+  if (readIndex >= numReadings) {
+    // ...wrap around to the beginning:
+    readIndex = 0;
+  }
+
+  // calculate the average:
+  average = total / numReadings;
+  return average;
+}
+/*
     Filter measurements depending on the variance.
     If variance is too high for a MEASUREMENTS_TO_FILTER measurements of a sensor
     then these measurements are disregarded. Otherwise the mean value is chosen.
@@ -146,10 +188,12 @@ void setup() {
     sendData(STATE_TO_MEASURING);
   }
   Serial.println("Communication is established and SonicDisc is measuring distances");
+
 }
 
 void loop() {
-  Serial.println("newData");
+  //Serial.println("newData");
+
   if (newData) {
     newData = false; // Indicate that we have read the latest data
 
@@ -172,6 +216,7 @@ void loop() {
       // Move along the index
       filterIndex = (filterIndex + 1) % MEASUREMENTS_TO_FILTER;
     }
+    sensorValueLDR = ldrSensor();
   }
 
   if (newFilteredMeasurements) {
@@ -180,13 +225,18 @@ void loop() {
     Udp.beginPacket(ipDest, destPort);
     // Print the measurements nicely
     Serial.print("S");
+    Udp.write("S");
     for (int i = 0; i < NUM_OF_SENSORS; i++) {
       Serial.print(",");
       Serial.print(filteredMeasurements[i]);
       Udp.write(filteredMeasurements[i]);
     }
-    Serial.println(",");
+
+    Udp.write(sensorValueLDR);
     Udp.endPacket();
+
+    Serial.print(",");
+    Serial.println(sensorValueLDR);
 
   }
 
