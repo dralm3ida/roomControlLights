@@ -5,7 +5,7 @@
 #include <string.h>
 #ifdef WIN32
 #  include <winsock.h>
-#  include <WS2tcpip.h>
+//#  include <WS2tcpip.h>
 #  include <windows.h>
 #else
 #  include <sys/socket.h>
@@ -64,7 +64,7 @@ int main (void)
    int sock;
    char message[MAXMSG];
    struct sockaddr_in name;
-   int size;
+   int size, i = 0;
    int nbytes;
 #ifdef WIN32
    WORD wVersionRequested;
@@ -79,6 +79,7 @@ int main (void)
 #endif
    /* Make the socket, then loop endlessly. */
    sock = make_named_socket (SERVER, 8888);
+   fflush(NULL);
    while (1)
    {
       /* Wait for a datagram. */
@@ -90,14 +91,21 @@ int main (void)
          exit (EXIT_FAILURE);
       }
       /* Give a diagnostic message. */
-      fprintf (stderr, "Server: got message: %s\n", message);
+      printf("Server: got message: %d\n", nbytes);
+      if ( nbytes ){
+         for ( i = 0; i < nbytes; i++ ){
+            printf("%02X", message[i] & 0xFF);
+         }
+      }
+      printf("\n");
       /* Bounce the message back to the sender. */
-      nbytes = sendto (sock, message, nbytes, 0, (struct sockaddr *) & name, size);
+      nbytes = sendto (sock, message, nbytes, 0, (struct sockaddr *)&name, size);
       if (nbytes < 0)
       {
          perror ("sendto (server)");
          exit (EXIT_FAILURE);
       }
+      fflush(NULL);
    }
 #ifdef WIN32
    WSACleanup();

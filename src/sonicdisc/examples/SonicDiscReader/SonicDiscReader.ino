@@ -2,6 +2,8 @@
 #include <EthernetUdp.h>
 #include <Wire.h>
 #include <stdint.h>
+#include "Timer.h"
+
 
 const uint8_t SONIC_DISC_I2C_ADDRESS = 0x09;
 const uint8_t NUM_OF_SENSORS = 8; // No. of ultrasonic sensors on SonicDisc
@@ -10,15 +12,23 @@ const uint8_t I2C_PACKET_SIZE = NUM_OF_SENSORS + 1;
 // The number of measurements from each sensor to filter
 const uint8_t MEASUREMENTS_TO_FILTER = 5;
 const uint8_t INT_PIN = 19;
-const unsigned int VARIANCE_THRESHOLD = 5;// The max valid variance in a set of MEASUREMENTS_TO_FILTER measurements
+const unsigned int VARIANCE_THRESHOLD = 10;// The max valid variance in a set of MEASUREMENTS_TO_FILTER measurements
 
+//LDR sensor
+const uint8_t LDRpin = A11;
+uint16_t sensorValueLDR = 0;  // variable to store the value coming from the sensor
 
 //
 byte mac[] = {  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 IPAddress ip(192, 168, 2, 2);
+IPAddress gateway(192, 168, 2, 1);
+IPAddress submask(255, 255, 255, 0);
 IPAddress ipDest(192, 168, 2, 254);
-uint8_t localPort = 8888;      // local port to listen on
-uint8_t destPort = 8888;      // local port to listen on
+uint16_t localPort = 8888;      // local port to listen on
+uint16_t destPort = 8888;      // local port to listen on
+
+//class
+Timer time;
 EthernetUDP Udp;
 
 
@@ -48,7 +58,7 @@ uint8_t filterIndex = 0;
 uint8_t filterBuffer[MEASUREMENTS_TO_FILTER][NUM_OF_SENSORS] = {0};
 uint8_t filteredMeasurements[NUM_OF_SENSORS] = {0};
 bool newFilteredMeasurements = false;
-
+//**********************************************************************************************************
 /**
    Requests an I2C packet from the SonicDisc
    @param  i2cInput         The array that will hold the incoming packet
@@ -63,7 +73,7 @@ I2C_ERROR_CODE requestPacket(uint8_t i2cInput[], const uint8_t transmissionSize 
   }
   return i2cInput[0]; // Return the packet's error code
 }
-
+//**********************************************************************************************************
 /**
    Sends the supplied byte to the SonicDisc
    @param byteToSend The byte to be sent
@@ -73,14 +83,14 @@ void sendData(uint8_t byteToSend) {
   Wire.write(byteToSend);
   Wire.endTransmission(SONIC_DISC_I2C_ADDRESS);
 }
-
+//**********************************************************************************************************
 /**
    ISR that raises a flag whenever SonicDisc is ready to transmit new data.
 */
 void newSonicDiscData() {
   newData = true;
 }
-
+//**********************************************************************************************************
 /*
    Adds the specified i2c packet in the buffer to be sorted later.
 */
@@ -90,7 +100,7 @@ void addInputToFilterBuffer(uint8_t i2cInput[], const uint8_t bufferIndex) {
     filterBuffer[bufferIndex][i] = i2cInput[j];
   }
 }
-
+//**********************************************************************************************************
 /*
     Sorts the measurements of each sensor for every cycle of measurements.
 */
@@ -109,7 +119,42 @@ void sortMeasurements() {
     }
   }
 }
+//**********************************************************************************************************
+/*
+   read and filter of ldr
+   kalman filter
+*/
+uint16_t ldrSensor() {
 
+
+
+
+  const int numReadings = 10;
+
+  int readings[numReadings];      // the readings from the analog input
+  int readIndex = 0;              // the index of the current reading
+  int total = 0;                  // the running total
+  int average = 0;                // the average
+
+  total = total - readings[readIndex];
+  // read from the sensor:
+  readings[readIndex] = analogRead( LDRpin );
+  // add the reading to the total:
+  total = total + readings[readIndex];
+  // advance to the next position in the array:
+  readIndex ++;
+
+  // if we're at the end of the array...
+  if (readIndex >= numReadings) {
+    // ...wrap around to the beginning:
+    readIndex = 0;
+  }
+
+  // calculate the average:
+  average = total / numReadings;
+  return analogRead( LDRpin );
+}
+//**********************************************************************************************************
 /*
     Filter measurements depending on the variance.
     If variance is too high for a MEASUREMENTS_TO_FILTER measurements of a sensor
@@ -129,15 +174,28 @@ void filterMeasurements() {
     }
   }
 }
+//**********************************************************************************************************
+/*
+   envio de informação
+*/
 
+void takeSendingMessage()
+{
+  newFilteredMeasurements = true;
+}
+//**********************************************************************************************************
 void setup() {
+  //i2c
   Wire.begin();
+
+  //ethernet
   Ethernet.init(10);  // Most Arduino shields
   Ethernet.begin(mac, ip);
   Udp.begin(localPort);
 
   Serial.begin(9600);
-  attachInterrupt(digitalPinToInterrupt(INT_PIN), newSonicDiscData, RISING);
+  attachInterrupt(digitalPinToInterrupt(INT_PIN), newSonicDiscData, RISING); //interrupt extern
+  
   Serial.println("Requesting packet from SonicDisc");
   uint8_t dummyInput[I2C_PACKET_SIZE] = {0}; // A throw-away array
   // Do not proceed unless the SonicDisc is in "MEASURING" state
@@ -146,10 +204,15 @@ void setup() {
     sendData(STATE_TO_MEASURING);
   }
   Serial.println("Communication is established and SonicDisc is measuring distances");
-}
 
+  
+ //config timer for send message
+  time.every(1000, takeSendingMessage, &newFilteredMeasurements );
+}
+//**********************************************************************************************************
 void loop() {
-  Serial.println("newData");
+  //Serial.println("newData");
+  time.update();//update time
   if (newData) {
     newData = false; // Indicate that we have read the latest data
 
@@ -172,23 +235,28 @@ void loop() {
       // Move along the index
       filterIndex = (filterIndex + 1) % MEASUREMENTS_TO_FILTER;
     }
+    sensorValueLDR = ldrSensor();
   }
 
-  if (newFilteredMeasurements) {
-    //    mensagem='\0';
-    newFilteredMeasurements = false;
+//mesage
+  if (newFilteredMeasurements)
+  {
+
     Udp.beginPacket(ipDest, destPort);
     // Print the measurements nicely
     Serial.print("S");
+    Udp.write("S");
     for (int i = 0; i < NUM_OF_SENSORS; i++) {
       Serial.print(",");
       Serial.print(filteredMeasurements[i]);
       Udp.write(filteredMeasurements[i]);
     }
-    Serial.println(",");
+
+    Udp.write(sensorValueLDR);
     Udp.endPacket();
 
+    Serial.print(",");
+    Serial.println(sensorValueLDR);
+    newFilteredMeasurements = false; //flag de nova lentura
   }
-
-
 }
