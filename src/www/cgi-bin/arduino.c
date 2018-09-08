@@ -237,7 +237,7 @@ int main (int argc, char ** argv)
       {
          int   i = 0, j = 0, k = 1;
 
-         printf("{ \"command\": \"%s\", \"bytes\": %u, \"request\": \"%c\"", command, dwBytesRead, request);
+         printf("{ \"command\": \"%s\", \"bytes\": %u, \"request\": \"%c\"", command, dwBytesRead, request[0]);
          if ( (1 == request[0]) || ('G' == request[0]) )
          {
             printf("\n, \"ultrasound\": [");
@@ -254,6 +254,10 @@ int main (int argc, char ** argv)
          if ( (3 == request[0]) || ('G' == request[0]) )
          {
             printf("\n, \"pir\": %u", response[k++]);
+         }
+         if ( ('G' == request[0]) )
+         {
+            printf("\n, \"mode\": %u", response[k++]);
          }
          printf("\n}");
       }

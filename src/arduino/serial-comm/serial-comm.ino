@@ -16,7 +16,7 @@ unsigned char g_lightSensor = 1;
 unsigned char g_pirSensor = 1;
 unsigned char g_light_one_state = LOW;
 unsigned char g_light_two_state = LOW;
-unsigned char g_lights_mode = SERIAL_COMMAND_VOICE_AUTOMODEOFF;
+byte g_lights_mode = SERIAL_COMMAND_VOICE_AUTOMODEOFF;
 byte g_init = 0;
 
 byte mac[] = {
@@ -242,13 +242,14 @@ void loop() {
         DEBUG(Udp.remoteIP());
         DEBUG(":");
         DEBUG(Udp.remotePort());
-        response[0] = 9;
+        response[0] = 10;
         memcpy(response + 1, g_ultraSoundValues, 8);
         response[9] = g_lightSensor;
+        response[10] = g_lights_mode;
         Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-        Udp.write(response, 10);
+        Udp.write(response, 11);
         Udp.endPacket();
-        DEBUGLN("... return 10 bytes");
+        DEBUGLN("... return 11 bytes");
         none = 0;
         break;
     }

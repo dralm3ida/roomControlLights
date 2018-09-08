@@ -20,6 +20,9 @@ int createSocket (int port){
 #ifdef WIN32
    WORD wVersionRequested;
     WSADATA wsaData;
+    DWORD tv = 0;
+#else
+   struct timeval    tv = {0};
 #endif
 
 #ifdef WIN32
@@ -35,6 +38,18 @@ int createSocket (int port){
        perror ("socket failed");
        return -1;
    }
+
+   //[#3.4] Set the timeout tick (1s) on this socket when waiting for response
+
+   //[#3.6] Sets timeout period
+#ifdef WIN32
+   tv = 2000;
+   setsockopt(rcp_socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+#else
+   tv.tv_sec  = 2;
+   tv.tv_usec = 0;
+   setsockopt(rcp_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#endif
 
    if ( 0 != port ){
       /* Bind a name to the socket. */
@@ -88,6 +103,7 @@ int requestSocket (int socket, int destAddr, int destPort, size_t nBytes, unsign
 int receiveSocket (int socket, size_t *nBytes, unsigned char *payload, struct sockaddr_in *context){
    int size      = 0, i = 0;
    size_t nbytes = 0;
+   int tmout = 0;
 
    /* Wait for a datagram. */
    //printf("receive data %u\n", *nBytes);
@@ -96,9 +112,10 @@ int receiveSocket (int socket, size_t *nBytes, unsigned char *payload, struct so
    do
    {
       nbytes = recvfrom (socket, payload, *nBytes, 0, (struct sockaddr *)context, &size);
+      tmout++;
       //printf("testa %d\n", nbytes);
       //fflush(NULL);
-   } while ( (nbytes < 0) || (nbytes >= *nBytes) );
+   } while ( ((nbytes < 0) || (nbytes >= *nBytes)) && (tmout < 2) );
    /* Give a diagnostic message. */
    //printf("Server: got message: %u\n", nbytes);
    if ( nbytes ){

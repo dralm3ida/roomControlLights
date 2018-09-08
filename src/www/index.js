@@ -9,7 +9,7 @@ angular.module("app", [])
       return value.join(",");
    }
 }])
-.controller("main", ["$scope", "$http", function ($scope, $http)
+.controller("main", ["$scope", "$http", "$timeout", function ($scope, $http, $timeout)
 {
    $scope.sensors = {p:null
       , ultrasound: [0,0,0,0,0,0,0,0]
@@ -29,9 +29,11 @@ angular.module("app", [])
             $scope.sensors.light = response.data.light;
             $scope.sensors.pir = response.data.pir;
          }
-         console.warn("response", response);
-      })
+         //console.warn("response", response);
+         $timeout($scope.loadSensors, 2000);
+      });
    };// endof ::loadSensors
+   $scope.loadSensors();
 
    $scope.commandVoice = function (command)
    {

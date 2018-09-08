@@ -1,6 +1,10 @@
+body
+{
+   bbackground-color: #294C22;
+}
 .room
 {
-   width: 100%;
-   height: 400px;
-   background-color: rgb(234, 243, 162);
+   width: 500px;
+   height: 500px;
+   background-color: #294C22;
 }
