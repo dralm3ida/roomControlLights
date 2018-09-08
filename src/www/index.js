@@ -61,6 +61,8 @@ angular.module("app", [])
       else if ( /.*light.*on.*/ig.test(commandraw) ){ commandraw = "lightson"; }
       else if ( /.*of.*light.*/ig.test(commandraw) ){ commandraw = "lightsoff"; }
       else if ( /.*light.*of.*/ig.test(commandraw) ){ commandraw = "lightsoff"; }
+      else if ( /.*wake.*/ig.test(commandraw) ){ commandraw = "wakeup"; }
+      else if ( /.*shutdown.*/ig.test(commandraw) ){ commandraw = "shutdown"; }
       var command = "voice:" + commandraw;
 
       console.warn("commandVoice", command, commandraw);

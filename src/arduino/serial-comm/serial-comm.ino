@@ -8,11 +8,15 @@
 #define PIN_LIGHTS_GROUP1   2
 #define PIN_LIGHTS_GROUP2   3
 
+#define ULTRASOUND_DELTA_THRESHOLD 128
+
 unsigned char g_ultraSoundValues[] = {100, 20, 30, 48, 50, 68, 170, 89}; // 8 sensors, each one with range 0-256
+unsigned char g_ultraSoundLastValues[] = {100, 20, 30, 48, 50, 68, 170, 89}; // last values
 unsigned char g_lightSensor = 1;
 unsigned char g_pirSensor = 1;
 unsigned char g_light_one_state = LOW;
 unsigned char g_light_two_state = LOW;
+unsigned char g_lights_mode = SERIAL_COMMAND_VOICE_AUTOMODEOFF;
 byte g_init = 0;
 
 byte mac[] = {
@@ -37,6 +41,84 @@ void setup() {
   Ethernet.begin(mac, ip);
   Udp.begin(portUltrasound);
 }
+
+int turnLightsOn (int group){
+   int res = 0;
+   switch (group){
+      case 1:
+         break;
+      case 2:
+         break;
+      default:;
+   }
+   return res;
+}
+
+int turnLightsOff (int group){
+   int res = 0;
+   switch (group){
+      case 1:
+         break;
+      case 2:
+         break;
+      default:;
+   }
+   return res;
+}
+
+int handleLightStatus(){
+   if ( SERIAL_COMMAND_VOICE_AUTOMODEOFF == g_lights_mode ){ return 0; }
+
+   int i = 0, leni = 0;
+   int sensorValue = 0;
+   int deltaValue = 0;
+
+
+
+   for (i = 0, leni = 8; i < leni ; ++i){
+      sensorValue = g_ultraSoundValues[i];
+      deltaValue =  g_ultraSoundValues[i] - g_ultraSoundLastValues[i];
+      if ( deltaValue >= ULTRASOUND_DELTA_THRESHOLD ){
+         //turnLightsOn(NULL);
+      }
+   }
+
+   return 0;
+}
+
+void doCommandVoice (int command)
+{
+  switch ( command )
+  {
+    case SERIAL_COMMAND_VOICE_LIGHTSON:
+      digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = HIGH);
+      digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = HIGH);
+      DEBUGLN("{}VOICE: command lights on");
+      break;
+    case SERIAL_COMMAND_VOICE_LIGHTSOFF:
+      digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = LOW);
+      digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = LOW);
+      DEBUGLN("{}VOICE: command lights off");
+      break;
+    case SERIAL_COMMAND_VOICE_LIGHTSON1:
+      digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = HIGH);
+      DEBUGLN("{}VOICE: command lights on group 1");
+      break;
+    case SERIAL_COMMAND_VOICE_LIGHTSOFF1:
+      digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = LOW);
+      DEBUGLN("{}VOICE: command lights off group 1");
+      break;
+    case SERIAL_COMMAND_VOICE_LIGHTSON2:
+      digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = HIGH);
+      DEBUGLN("{}VOICE: command lights on group 2");
+      break;
+    case SERIAL_COMMAND_VOICE_LIGHTSOFF2:
+      digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = LOW);
+      DEBUGLN("{}VOICE: command lights off group 2");
+      break;
+  }  
+}
+
 
 void loop() {
   int packetSize = Udp.parsePacket();
@@ -104,44 +186,70 @@ void loop() {
 */
     digitalWrite(LED_BUILTIN, HIGH);
   }
-  else if ( (packetSize >= 8) )
+  else if ( packetSize > 0 )
   {
     byte  response[20] = {0};
-    int   i = 0;
+    int   i = 0, none = 1;
     
     packetSize = Udp.read(response, 20);
     switch ( response[0] )
     {
+      case 'A':
+        g_lights_mode = SERIAL_COMMAND_VOICE_AUTOMODEON;
+        DEBUGLN("{}AUTO: enable automatic mode");
+        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+        Udp.write(response, 10);
+        Udp.endPacket();        
+        break;
+      case 'M':
+        g_lights_mode = SERIAL_COMMAND_VOICE_AUTOMODEOFF;
+        DEBUGLN("{}AUTO: disable automatic mode");
+        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+        Udp.write(response, 10);
+        Udp.endPacket();
+        break;
       case 'S':
         Serial.print("Update sensors: ");
-        if ( packetSize >= 8 )
+        if ( packetSize >= 9 )
         {
-          memcpy(g_ultraSoundValues, response, 8);
-          for ( i = 0; i < 8; ++i )
+          memcpy(g_ultraSoundValues, response + 1, 8);
+          for ( i = 1; i < 9; ++i )
           {
             Serial.print(response[i], DEC);
             Serial.print(" ");
           }
         }
-        if ( packetSize > 8 )
+        if ( packetSize > 9 )
         {
-          g_lightSensor = response[8];
+          g_lightSensor = response[9];
           Serial.print(g_lightSensor, DEC);
         }
         Serial.print("\n");
+        handleLightStatus();
+        none = 0;
+        break;
+      case 'V':
+        doCommandVoice(response[1]);
+        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+        Udp.write(response, 10);
+        Udp.endPacket();
         break;
       case 'G':
         IPAddress remoteAddr = Udp.remoteIP();
         int       remotePort = Udp.remotePort();
 
-        DEBUG("{}GET: received request...");
+        DEBUG("{}GET: received request from ");
+        DEBUG(Udp.remoteIP());
+        DEBUG(":");
+        DEBUG(Udp.remotePort());
         response[0] = 9;
         memcpy(response + 1, g_ultraSoundValues, 8);
         response[9] = g_lightSensor;
         Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
         Udp.write(response, 10);
         Udp.endPacket();
-        DEBUGLN("return 10 bytes");
+        DEBUGLN("... return 10 bytes");
+        none = 0;
         break;
     }
   }

@@ -173,7 +173,7 @@ int main (int argc, char ** argv)
 
    if ( 0 == res )
    {
-      unsigned char  request = 0, response[50];
+      unsigned char  request[2] = {0}, response[50];
       char     isVoiceCommand = 0;
       char     ultrasound[8] = {0};
       char     temperature = 0;
@@ -181,39 +181,44 @@ int main (int argc, char ** argv)
 
       if ( 0 ){
       }else if ( 0 == strncmp("voice:", command, 6) ){
+         request[0] = 'V';
          if ( 0 ){
+         }else if ( 0 == strcmp("wakeup", command + 6) ){
+            request[0] = 'A';
+         }else if ( 0 == strcmp("shutdown", command + 6) ){
+            request[0] = 'M';
          }else if ( 0 == strcmp("lightson", command + 6) ){
-            request = SERIAL_COMMAND_VOICE_LIGHTSON;
+            request[1] = SERIAL_COMMAND_VOICE_LIGHTSON;
          }else if ( 0 == strcmp("lightsoff", command + 6) ){
-            request = SERIAL_COMMAND_VOICE_LIGHTSOFF;
+            request[1] = SERIAL_COMMAND_VOICE_LIGHTSOFF;
          }else if ( 0 == strcmp("lightsongroup1", command + 6) ){
-            request = SERIAL_COMMAND_VOICE_LIGHTSON1;
+            request[1] = SERIAL_COMMAND_VOICE_LIGHTSON1;
          }else if ( 0 == strcmp("lightsoffgroup1", command + 6) ){
-            request = SERIAL_COMMAND_VOICE_LIGHTSOFF1;
+            request[1] = SERIAL_COMMAND_VOICE_LIGHTSOFF1;
          }else if ( 0 == strcmp("lightsofgroup1", command + 6) ){
-            request = SERIAL_COMMAND_VOICE_LIGHTSOFF1;
+            request[1] = SERIAL_COMMAND_VOICE_LIGHTSOFF1;
          }else if ( 0 == strcmp("lightsongroup2", command + 6) ){
-            request = SERIAL_COMMAND_VOICE_LIGHTSON2;
+            request[1] = SERIAL_COMMAND_VOICE_LIGHTSON2;
          }else if ( 0 == strcmp("lightsoffgroup2", command + 6) ){
-            request = SERIAL_COMMAND_VOICE_LIGHTSOFF2;
+            request[1] = SERIAL_COMMAND_VOICE_LIGHTSOFF2;
          }else if ( 0 == strcmp("lightsofgroup2", command + 6) ){
-            request = SERIAL_COMMAND_VOICE_LIGHTSOFF2;
+            request[1] = SERIAL_COMMAND_VOICE_LIGHTSOFF2;
          }else{
             res = -1;
          }
          isVoiceCommand = 1;
       }else if ( 0 == strcmp("ultrasound", command) ){
-         request = SERIAL_COMMAND_ULTRASOUND;
+         request[0] = SERIAL_COMMAND_ULTRASOUND;
       }else if ( 0 == strcmp("light", command) ){
-         request = SERIAL_COMMAND_LIGHT;
+         request[0] = SERIAL_COMMAND_LIGHT;
       }else if ( 0 == strcmp("pir", command) ){
-         request = SERIAL_COMMAND_PIR;
+         request[0] = SERIAL_COMMAND_PIR;
       }else{
-         request = 'G';
+         request[0] = 'G';
       }
 
       //printf("Send command[%u]\n", request);
-      if ( COMM_WRITE(&rpcHandle, 1, &request) < 0 )
+      if ( COMM_WRITE(&rpcHandle, 2, request) < 0 )
       {
          printf("Failed sending comm request\n");
          res = -1;
@@ -233,7 +238,7 @@ int main (int argc, char ** argv)
          int   i = 0, j = 0, k = 1;
 
          printf("{ \"command\": \"%s\", \"bytes\": %u, \"request\": \"%c\"", command, dwBytesRead, request);
-         if ( (1 == request) || ('G' == request) )
+         if ( (1 == request[0]) || ('G' == request[0]) )
          {
             printf("\n, \"ultrasound\": [");
             for ( j = 0; (i < 8) && (i < dwBytesRead); ++i, ++j )
@@ -242,11 +247,11 @@ int main (int argc, char ** argv)
             }
             printf("]");
          }
-         if ( (2 == request) || ('G' == request) )
+         if ( (2 == request[0]) || ('G' == request[0]) )
          {
             printf("\n, \"light\": %u", response[k++]);
          }
-         if ( (3 == request) || ('G' == request) )
+         if ( (3 == request[0]) || ('G' == request[0]) )
          {
             printf("\n, \"pir\": %u", response[k++]);
          }
