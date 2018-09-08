@@ -42,31 +42,37 @@ void setup() {
   Udp.begin(portUltrasound);
 }
 
-int turnLightsOn (int group){
-   int res = 0;
+void turnLightsOn (int group){
    switch (group){
       case 1:
+         digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = HIGH);
          break;
       case 2:
+         digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = HIGH);      
          break;
-      default:;
+      default:
+         digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = HIGH);
+         digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = HIGH);
    }
-   return res;
 }
 
-int turnLightsOff (int group){
-   int res = 0;
+void turnLightsOff (int group)
+{
    switch (group){
       case 1:
+         digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = LOW);
          break;
       case 2:
+         digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = LOW);
          break;
-      default:;
+      default:
+         digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = LOW);
+         digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = LOW);
    }
-   return res;
 }
 
-int handleLightStatus(){
+int handleLightStatus()
+{
    if ( SERIAL_COMMAND_VOICE_AUTOMODEOFF == g_lights_mode ){ return 0; }
 
    int i = 0, leni = 0;
@@ -79,10 +85,9 @@ int handleLightStatus(){
       sensorValue = g_ultraSoundValues[i];
       deltaValue =  g_ultraSoundValues[i] - g_ultraSoundLastValues[i];
       if ( deltaValue >= ULTRASOUND_DELTA_THRESHOLD ){
-         //turnLightsOn(NULL);
+         turnLightsOn(0);
       }
    }
-
    return 0;
 }
 
@@ -91,8 +96,9 @@ void doCommandVoice (int command)
   switch ( command )
   {
     case SERIAL_COMMAND_VOICE_LIGHTSON:
-      digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = HIGH);
-      digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = HIGH);
+      turnLightsOn(0);
+      //digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = HIGH);
+      //digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = HIGH);
       DEBUGLN("{}VOICE: command lights on");
       break;
     case SERIAL_COMMAND_VOICE_LIGHTSOFF:
