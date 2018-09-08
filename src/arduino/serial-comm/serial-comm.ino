@@ -48,7 +48,7 @@ void turnLightsOn (int group){
          digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = HIGH);
          break;
       case 2:
-         digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = HIGH);      
+         digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = HIGH);
          break;
       default:
          digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = HIGH);
@@ -74,19 +74,23 @@ void turnLightsOff (int group)
 int handleLightStatus()
 {
    if ( SERIAL_COMMAND_VOICE_AUTOMODEOFF == g_lights_mode ){ return 0; }
-
    int i = 0, leni = 0;
    int sensorValue = 0;
    int deltaValue = 0;
-
-
+   int lightsOnOff = 0;
 
    for (i = 0, leni = 8; i < leni ; ++i){
       sensorValue = g_ultraSoundValues[i];
       deltaValue =  g_ultraSoundValues[i] - g_ultraSoundLastValues[i];
       if ( deltaValue >= ULTRASOUND_DELTA_THRESHOLD ){
-         turnLightsOn(0);
+         lightsOnOff = 1;
+         // Updates last value
+         g_ultraSoundLastValues[i] = g_ultraSoundValues[i];
       }
+   }
+
+   if ( 1 == lightsOnOff ){
+     turnLightsOn(0);
    }
    return 0;
 }
@@ -119,7 +123,7 @@ void doCommandVoice (int command)
       turnLightsOff(2);
       DEBUGLN("{}VOICE: command lights off group 2");
       break;
-  }  
+  }
 }
 
 
@@ -193,25 +197,25 @@ void loop() {
   {
     byte  response[20] = {0};
     int   i = 0, none = 1;
-    
+
     packetSize = Udp.read(response, 20);
     switch ( response[0] )
     {
-      case 'A':
+      case 'A': // Modo automatico
         g_lights_mode = SERIAL_COMMAND_VOICE_AUTOMODEON;
         DEBUGLN("{}AUTO: enable automatic mode");
         Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
         Udp.write(response, 10);
-        Udp.endPacket();        
+        Udp.endPacket();
         break;
-      case 'M':
+      case 'M': // Modo manual
         g_lights_mode = SERIAL_COMMAND_VOICE_AUTOMODEOFF;
         DEBUGLN("{}AUTO: disable automatic mode");
         Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
         Udp.write(response, 10);
         Udp.endPacket();
         break;
-      case 'S':
+      case 'S': // Informacao que vem dos ultrasons
         Serial.print("Update sensors: ");
         if ( packetSize >= 9 )
         {
@@ -231,13 +235,21 @@ void loop() {
         handleLightStatus();
         none = 0;
         break;
-      case 'V':
+      case 'P': // Informacao que vem do optical flow
+          Serial.print("Update PIR: ");
+          g_pirSensor = (unsigned char)response[1];
+
+          if ( ((HIGH == g_light_one_state) || (HIGH == g_light_two_state)) && (0 == g_pirSensor) ) {
+             turnLightsOff(0);
+          }
+        break;
+      case 'V': // Comandos de voz
         doCommandVoice(response[1]);
         Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
         Udp.write(response, 10);
         Udp.endPacket();
         break;
-      case 'G':
+      case 'G': // Ler todos os valores
         IPAddress remoteAddr = Udp.remoteIP();
         int       remotePort = Udp.remotePort();
 
