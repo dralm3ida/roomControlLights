@@ -35,6 +35,22 @@ angular.module("app", [])
    };// endof ::loadSensors
    $scope.loadSensors();
 
+   $scope.makeRandom = function ()
+   {
+      return $http.get("/rest/arduino/com4/all")
+      .then(function(response)
+      {
+         if ( (200 == response.status) && response.data )
+         {
+            $scope.sensors.ultrasound  = response.data.ultrasound;
+            $scope.sensors.light = response.data.light;
+            $scope.sensors.pir = response.data.pir;
+         }
+         //console.warn("response", response);
+         $timeout($scope.loadSensors, 2000);
+      });
+   };// endof ::makeRandom
+
    $scope.commandVoice = function (command)
    {
       console.warn("original command", command);

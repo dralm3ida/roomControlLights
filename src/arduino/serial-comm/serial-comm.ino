@@ -10,7 +10,7 @@
 
 #define ULTRASOUND_DELTA_THRESHOLD 128
 
-unsigned char g_ultraSoundValues[] = {100, 20, 30, 48, 50, 68, 170, 89}; // 8 sensors, each one with range 0-256
+unsigned char g_ultraSoundValues[] = {0, 0, 0, 0, 0, 0, 0, 0}; // 8 sensors, each one with range 0-256
 unsigned char g_ultraSoundLastValues[] = {100, 20, 30, 48, 50, 68, 170, 89}; // last values
 unsigned char g_lightSensor = 1;
 unsigned char g_pirSensor = 1;
@@ -213,16 +213,16 @@ void loop() {
         break;
       case 'S':
         Serial.print("Update sensors: ");
-        if ( packetSize >= 9 )
+        if ( packetSize >= 7 )
         {
-          memcpy(g_ultraSoundValues, response + 1, 8);
-          for ( i = 1; i < 9; ++i )
+          memcpy(g_ultraSoundValues, response + 1, 5);
+          for ( i = 1; i < 7; ++i )
           {
             Serial.print(response[i], DEC);
             Serial.print(" ");
           }
         }
-        if ( packetSize > 9 )
+        if ( packetSize > 7 )
         {
           g_lightSensor = response[9];
           Serial.print(g_lightSensor, DEC);

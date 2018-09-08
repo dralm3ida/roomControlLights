@@ -173,11 +173,13 @@ int main (int argc, char ** argv)
 
    if ( 0 == res )
    {
-      unsigned char  request[2] = {0}, response[50];
+      unsigned char  request[20] = {0}, response[50];
+      int      params[20] = {0};
       char     isVoiceCommand = 0;
       char     ultrasound[8] = {0};
       char     temperature = 0;
       size_t   dwBytesRead = 0;
+      int      reqSize = 2;
 
       if ( 0 ){
       }else if ( 0 == strncmp("voice:", command, 6) ){
@@ -213,12 +215,24 @@ int main (int argc, char ** argv)
          request[0] = SERIAL_COMMAND_LIGHT;
       }else if ( 0 == strcmp("pir", command) ){
          request[0] = SERIAL_COMMAND_PIR;
+      }else if ( 0 == strncmp("status:", command, 7) ){
+         if ( 9 == sscanf(command + 7, "%d:%d:%d:%d:%d:%d:%d:%d:%d", params + 0, params + 1, params + 2, params + 3, params + 4, params + 5, params + 6, params + 7, params + 8) )
+         {
+            int   i = 0;
+
+            request[0] = 'S';
+            for ( i = 0; i < 9; ++i )
+            {
+               request[i + 1] = params[i];
+            }
+            reqSize = 10;
+         }
       }else{
          request[0] = 'G';
       }
 
       //printf("Send command[%u]\n", request);
-      if ( COMM_WRITE(&rpcHandle, 2, request) < 0 )
+      if ( COMM_WRITE(&rpcHandle, reqSize, request) < 0 )
       {
          printf("Failed sending comm request\n");
          res = -1;
