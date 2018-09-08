@@ -5,6 +5,8 @@
 #include <string.h>
 #ifdef WIN32
 #  include <winsock.h>
+//#  include <WS2tcpip.h>
+#  include <windows.h>
 #else
 #  include <sys/socket.h>
 #  include <sys/un.h>
@@ -14,14 +16,14 @@
 #define MAXMSG  512
 
 int
-make_named_socket (const char *filename)
+make_named_socket (const char *filename, int port)
 {
   struct sockaddr_in name;
   int sock;
   size_t size;
 
   /* Create the socket. */
-  sock = socket (PF_LOCAL, SOCK_DGRAM, 0);
+  sock = socket (AF_INET, SOCK_DGRAM, 0);
   if (sock < 0)
     {
       perror ("socket");
@@ -29,9 +31,12 @@ make_named_socket (const char *filename)
     }
 
   /* Bind a name to the socket. */
-  name.sun_family = AF_LOCAL;
-  strncpy (name.sun_path, filename, sizeof (name.sun_path));
-  name.sun_path[sizeof (name.sun_path) - 1] = '\0';
+  name.sin_family = AF_INET;
+  name.sin_port         = htons(port);
+  name.sin_addr.s_addr  = htonl(INADDR_ANY);
+
+  //strncpy (name.sin_path, filename, sizeof (name.sin_path));
+  //name.sin_path[sizeof (name.sin_path) - 1] = '\0';
 
   /* The size of the address is
      the offset of the start of the filename,
@@ -39,12 +44,12 @@ make_named_socket (const char *filename)
      Alternatively you can just do:
      size = SUN_LEN (&name);
  */
-  size = (offsetof (struct sockaddr_in, sun_path)
-          + strlen (name.sun_path));
+  //size = (offsetof (struct sockaddr_in, sin_path) + strlen (name.sin_path));
 
-  if (bind (sock, (struct sockaddr *) &name, size) < 0)
+  if (bind (sock, (struct sockaddr *) &name, sizeof(name)) < 0)
     {
       perror ("bind");
+      printf("%d\n", WSAGetLastError());
       exit (EXIT_FAILURE);
     }
 
@@ -58,12 +63,16 @@ int main (void)
    struct sockaddr_in name;
    int size;
    int nbytes;
- 
+   WORD wVersionRequested;
+    WSADATA wsaData; 
+
+   wVersionRequested = MAKEWORD(2, 2);
+   WSAStartup(wVersionRequested, &wsaData);
    /* Remove the filename first, it's ok if the call fails */
    //unlink (SERVER);
 
    /* Make the socket, then loop endlessly. */
-   sock = make_named_socket (SERVER);
+   sock = make_named_socket (SERVER, 8888);
    while (1)
    {
       /* Wait for a datagram. */
@@ -84,4 +93,5 @@ int main (void)
          exit (EXIT_FAILURE);
       }
    }
+   WSACleanup();
 }
