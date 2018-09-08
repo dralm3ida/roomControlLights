@@ -14,9 +14,6 @@
 #  include <netinet/in.h>
 #endif
 
-#define MAXMSG  512
-
-
 int createSocket (int port){
    int rcp_socket = 0;
    struct sockaddr_in name;
@@ -56,15 +53,25 @@ int createSocket (int port){
    return rcp_socket;
 }
 
-void requestSocket (int socket, int destAddr, int destPort, size_t nBytes, unsigned char payload){
+int requestSocket (int socket, int destAddr, int destPort, size_t nBytes, unsigned char *payload, struct sockaddr_in *context){
+   int addr_size = 0;
+   size_t nbytes = 0;
 
+   context->sin_family       = AF_INET;
+   context->sin_port         = htons(destPort);
+   context->sin_addr.s_addr  = htonl(destAddr);
 
-
+   addr_size = sizeof(*context);
+   nbytes = sendto (socket, payload, nBytes, 0, (struct sockaddr *)context, addr_size);
+   if (nbytes < 0){
+      perror ("sendto (server)");
+      exit (EXIT_FAILURE);
+   }
+   fflush(NULL);
 }
 
-void receiveSocket (int socket, size_t *nBytes, unsigned char *payload, struct sockaddr_in *context){
-   int res = 0;
-   int size = 0;
+int receiveSocket (int socket, size_t *nBytes, unsigned char *payload, struct sockaddr_in *context){
+   int size      = 0, i = 0;
    size_t nbytes = 0;
 
    /* Wait for a datagram. */
@@ -75,5 +82,12 @@ void receiveSocket (int socket, size_t *nBytes, unsigned char *payload, struct s
       exit (EXIT_FAILURE);
    }
    /* Give a diagnostic message. */
-   fprintf (stderr, "Server: got message: %s\n", payload);
+   printf("Server: got message: %zu\n", nbytes);
+   if ( nbytes ){
+      for ( i = 0; i < nbytes; i++ ){
+         printf("%02X", payload[i] & 0xFF);
+      }
+   }
+   printf("\n");
+   fflush(NULL);
 }
