@@ -251,13 +251,13 @@ int main (int argc, char ** argv)
          {
             printf("\n, \"light\": %u", response[k++]);
          }
-         if ( (3 == request[0]) || ('G' == request[0]) )
-         {
-            printf("\n, \"pir\": %u", response[k++]);
-         }
+         //if ( (3 == request[0]) || ('G' == request[0]) )
+         //{
+         //   printf("\n, \"pir\": %u", response[k++]);
+         //}
          if ( ('G' == request[0]) )
          {
-            printf("\n, \"mode\": %u", response[k++]);
+            printf("\n, \"mode\": %u", (SERIAL_COMMAND_VOICE_AUTOMODEON == response[k++])?(1):(0));
          }
          printf("\n}");
       }
