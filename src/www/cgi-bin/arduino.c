@@ -3,14 +3,146 @@
 #include <windows.h>
 #include "../../arduino/serial-comm/commands.h"
 
-LPCSTR portname = "COM4";
-DWORD  accessdirection =GENERIC_READ | GENERIC_WRITE;
+#define SERIAL 0
+#include "rpc.c"
+
+#if SERIAL
+#  define COMM_OPEN  serial_open
+#  define COMM_WRITE serial_write
+#  define COMM_READ  serial_read
+#  define COMM_CLOSE serial_close
+#  define COMM_RSRC  HANDLE
+#else
+#  define COMM_OPEN  rpc_open
+#  define COMM_WRITE rpc_write
+#  define COMM_READ  rpc_read
+#  define COMM_CLOSE rpc_close
+typedef struct
+{
+   int                  socket;
+   struct sockaddr_in   name;
+} COMM_RSRC;
+#endif
+
+
+#if SERIAL
+
+COMM_RSRC* serial_open (COMM_RSRC * serial)
+{
+   LPCSTR         portname = "COM4";
+   DWORD          accessdirection = GENERIC_READ | GENERIC_WRITE;
+   DCB            dcbSerialParams = {0};
+   COMMTIMEOUTS   timeouts = {0};
+   HANDLE hSerial = CreateFile(portname
+      , accessdirection
+      , 0
+      , 0
+      , OPEN_EXISTING
+      , 0
+      , 0);
+   if ( INVALID_HANDLE_VALUE == hSerial )
+   {
+      printf("failed opening %s\n", portname);
+      return NULL;
+   }
+
+   dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+   if ( !GetCommState(hSerial, &dcbSerialParams) )
+   {
+      printf("could not get the state of the comport %s\n", portname);
+      return NULL;
+   }
+   dcbSerialParams.BaudRate = 9600;
+   dcbSerialParams.ByteSize = 8;
+   dcbSerialParams.StopBits = ONESTOPBIT;
+   dcbSerialParams.Parity = NOPARITY;
+   if ( !SetCommState(hSerial, &dcbSerialParams) )
+   {
+      printf("analyse error %s\n", portname);
+      return NULL;
+   }
+
+   timeouts.ReadIntervalTimeout=50;
+   timeouts.ReadTotalTimeoutConstant=50;
+   timeouts.ReadTotalTimeoutMultiplier=10;
+   timeouts.WriteTotalTimeoutConstant=50;
+   timeouts.WriteTotalTimeoutMultiplier=10;
+   if ( !SetCommTimeouts(hSerial, &timeouts) )
+   {
+      printf("handle error %s\n", portname);
+      return NULL;
+   }
+   *serial = &hSerial;
+   return serial;
+}// endof ::serial_open
+
+ssize_t serial_write (COMM_RSRC * serial, size_t bytes, unsigned char * payload)
+{
+   DWORD    dwBytesRead = 0;
+
+   if ( !WriteFile(*serial, payload, bytes, &dwBytesRead, NULL) )
+   {
+      return -1;
+   }
+   return dwBytesRead;
+}// endof serial_open
+
+ssize_t serial_read (COMM_RSRC * serial, size_t * bytes, unsigned char * payload)
+{
+   DWORD    dwBytesRead = 0;
+
+   if ( !ReadFile(*serial, payload, *bytes, &dwBytesRead, NULL) )
+   {
+      return -1;
+   }
+   return dwBytesRead;
+}// endof serial_read
+
+void serial_close (COMM_RSRC * serial)
+{
+   CloseHandle(*serial);
+}// endof serial_close
+
+#else
+
+COMM_RSRC* rpc_open (COMM_RSRC * socket)
+{
+   memset(socket, 0, sizeof(*socket));
+   socket->socket = createSocket(0);
+   return socket;
+}// endof rpc_open
+
+ssize_t rpc_write (COMM_RSRC * socket, size_t bytes, unsigned char * payload)
+{
+   if ( requestSocket(socket->socket, (192 << 24 | 168 << 16 | 2 << 8 | 254), 8888, bytes, payload, &socket->name) < 0 )
+   {
+      return -1;
+   }
+   return bytes;
+}// endof ::rpc_write
+
+ssize_t rpc_read (COMM_RSRC * socket, size_t * bytes, unsigned char * payload)
+{
+   if ( receiveSocket(socket->socket, bytes, payload, &socket->name) < 0 )
+   {
+      return -1;
+   }
+   return *bytes;
+}// endof ::rpc_read
+
+void rpc_close (COMM_RSRC * socket)
+{
+   closeSocket(socket->socket);
+   return;
+}// endof rpc_close
+#endif
 
 int main (int argc, char ** argv)
 {
-   char  command[50] = "all";
-   char  *pathinfo = NULL;
-   int   res = 0;
+   char        command[50] = "all";
+   char        *pathinfo = NULL;
+   COMM_RSRC   rpcHandle;
+   int         res = 0;
 
    printf("Content-type: application/json\n");
    printf("Cache: no-cache\n");
@@ -32,51 +164,20 @@ int main (int argc, char ** argv)
       }
    }
 
-
-HANDLE hSerial = CreateFile(portname,
-    accessdirection,
-    0,
-    0,
-    OPEN_EXISTING,
-    0,
-    0);
-if (hSerial == INVALID_HANDLE_VALUE) {
-   printf("failed opening %s\n", portname);
-}
-
-DCB dcbSerialParams = {0};
-dcbSerialParams.DCBlength=sizeof(dcbSerialParams);
-if (!GetCommState(hSerial, &dcbSerialParams)) {
-   printf("could not get the state of the comport %s\n", portname);
-}
-dcbSerialParams.BaudRate=9600;
-dcbSerialParams.ByteSize=8;
-dcbSerialParams.StopBits=ONESTOPBIT;
-dcbSerialParams.Parity=NOPARITY;
-if(!SetCommState(hSerial, &dcbSerialParams)){
-   printf("analyse error %s\n", portname);
-     //analyse error
-}
-
-
- COMMTIMEOUTS timeouts={0};
-timeouts.ReadIntervalTimeout=50;
-timeouts.ReadTotalTimeoutConstant=50;
-timeouts.ReadTotalTimeoutMultiplier=10;
-timeouts.WriteTotalTimeoutConstant=50;
-timeouts.WriteTotalTimeoutMultiplier=10;
-if(!SetCommTimeouts(hSerial, &timeouts)){
-   printf("handle error %s\n", portname);
-    //handle error
-}
+   if ( !COMM_OPEN(&rpcHandle) )
+   {
+      printf("Failed creating comm resource\n");
+      res = -1;
+      return 1;
+   }
 
    if ( 0 == res )
    {
       unsigned char  request = 0, response[50];
-      char  isVoiceCommand = 0;
-      char  ultrasound[8] = {0};
-      char  temperature = 0;
-      DWORD dwBytesRead = 0;
+      char     isVoiceCommand = 0;
+      char     ultrasound[8] = {0};
+      char     temperature = 0;
+      size_t   dwBytesRead = 0;
 
       if ( 0 ){
       }else if ( 0 == strncmp("voice:", command, 6) ){
@@ -107,71 +208,57 @@ if(!SetCommTimeouts(hSerial, &timeouts)){
          request = SERIAL_COMMAND_LIGHT;
       }else if ( 0 == strcmp("pir", command) ){
          request = SERIAL_COMMAND_PIR;
+      }else{
+         request = 'G';
       }
 
-      if ( !WriteFile(hSerial, &request, 1, &dwBytesRead, NULL) )
+      //printf("Send command[%u]\n", request);
+      if ( COMM_WRITE(&rpcHandle, 1, &request) < 0 )
       {
+         printf("Failed sending comm request\n");
          res = -1;
-         printf("write error %s\n", portname);
+         return 1;
       }
-      else
+
+      Sleep(100);
+      dwBytesRead = sizeof(response);
+      if ( COMM_READ(&rpcHandle, &dwBytesRead, response) < 0 )
       {
-         dwBytesRead = 0;
-         if ( !ReadFile(hSerial, response, 50, &dwBytesRead, NULL) )
-         {
-            res = -1;
-            printf("read error %s\n", portname);
-         }
+         printf("Failed receiving comm response\n");
+         res = -1;
+         return 1;
       }
       if ( (0 == res) && (0 == isVoiceCommand) )
       {
-         int   i = 0, j = 0;
+         int   i = 0, j = 0, k = 1;
 
-         printf("{ \"serial\": \"%s\", \"command\": \"%s\", \"bytes\": %u, \"request\": %u", portname, command, dwBytesRead, request);
-         if ( (1 == request) || (0 == request) )
+         printf("{ \"command\": \"%s\", \"bytes\": %u, \"request\": \"%c\"", command, dwBytesRead, request);
+         if ( (1 == request) || ('G' == request) )
          {
             printf("\n, \"ultrasound\": [");
             for ( j = 0; (i < 8) && (i < dwBytesRead); ++i, ++j )
             {
-               printf("%c%u", (j)?(','):(' '), response[i]);
+               printf("%c%u", (j)?(','):(' '), response[k++]);
             }
             printf("]");
          }
-         if ( (2 == request) || (0 == request) )
+         if ( (2 == request) || ('G' == request) )
          {
-            printf("\n, \"light\": %u", response[i++]);
+            printf("\n, \"light\": %u", response[k++]);
          }
-         if ( (3 == request) || (0 == request) )
+         if ( (3 == request) || ('G' == request) )
          {
-            printf("\n, \"pir\": %u", response[i++]);
+            printf("\n, \"pir\": %u", response[k++]);
          }
          printf("\n}");
       }
       if ( (0 == res) && (1 == isVoiceCommand) )
       {
-         printf("{ \"serial\": \"%s\", \"command\": \"%s\", \"bytes\": %u, \"request\": %u, \"response\": %u", portname, command, dwBytesRead, request, response[0]);
+         printf("{ \"command\": \"%s\", \"bytes\": %u, \"request\": \"%c\", \"response\": %u", command, dwBytesRead, request, response[0]);
          printf("\n}");
       }
 
    }
 
-
-
-#if 0
-   if ( NULL != (mycom = fopen("\\\\.\\COM4", "r+b")) )
-   {
-      request[0] = 'a';
-      fwrite(request, sizeof(char), 1, mycom);
-
-
-      fflush(NULL);
-      fclose(mycom);
-   }
-   else
-   {
-      printf("failed opening COM4\n");
-   }
-#endif
-   //printf("hello world %s\n", getenv("PATH_INFO"));
-   CloseHandle(hSerial);
+   COMM_CLOSE(&rpcHandle);
 }

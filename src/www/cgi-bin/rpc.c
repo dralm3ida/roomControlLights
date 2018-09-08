@@ -5,7 +5,7 @@
 #include <string.h>
 #ifdef WIN32
 #  include <winsock.h>
-#  include <WS2tcpip.h>
+//#  include <WS2tcpip.h>
 #  include <windows.h>
 #else
 #  include <sys/types.h>
@@ -17,11 +17,23 @@
 int createSocket (int port){
    int rcp_socket = 0;
    struct sockaddr_in name;
+#ifdef WIN32
+   WORD wVersionRequested;
+    WSADATA wsaData;
+#endif
+
+#ifdef WIN32
+   wVersionRequested = MAKEWORD(2, 2);
+   WSAStartup(wVersionRequested, &wsaData);
+   /* Remove the filename first, it's ok if the call fails */
+   //unlink (SERVER);
+#endif
+
 
    /* Create the socket. */
    if ( (rcp_socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
        perror ("socket failed");
-       exit (EXIT_FAILURE);
+       return -1;
    }
 
    if ( 0 != port ){
@@ -57,6 +69,7 @@ int requestSocket (int socket, int destAddr, int destPort, size_t nBytes, unsign
    int addr_size = 0;
    size_t nbytes = 0;
 
+   memset(context, 0, sizeof(*context));
    context->sin_family       = AF_INET;
    context->sin_port         = htons(destPort);
    context->sin_addr.s_addr  = htonl(destAddr);
@@ -65,9 +78,11 @@ int requestSocket (int socket, int destAddr, int destPort, size_t nBytes, unsign
    nbytes = sendto (socket, payload, nBytes, 0, (struct sockaddr *)context, addr_size);
    if (nbytes < 0){
       perror ("sendto (server)");
-      exit (EXIT_FAILURE);
+      return -1;
    }
-   fflush(NULL);
+   //printf("send data %u\n", nbytes);
+   //fflush(NULL);
+   return nBytes;
 }
 
 int receiveSocket (int socket, size_t *nBytes, unsigned char *payload, struct sockaddr_in *context){
@@ -75,19 +90,28 @@ int receiveSocket (int socket, size_t *nBytes, unsigned char *payload, struct so
    size_t nbytes = 0;
 
    /* Wait for a datagram. */
+   //printf("receive data %u\n", *nBytes);
+   //fflush(NULL);
    size = sizeof (*context);
-   nbytes = recvfrom (socket, payload, *nBytes, 0, (struct sockaddr *)context, &size);
-   if (nbytes < 0){
-      perror ("recfrom (server)");
-      exit (EXIT_FAILURE);
-   }
+   do
+   {
+      nbytes = recvfrom (socket, payload, *nBytes, 0, (struct sockaddr *)context, &size);
+      //printf("testa %d\n", nbytes);
+      //fflush(NULL);
+   } while ( (nbytes < 0) || (nbytes >= *nBytes) );
    /* Give a diagnostic message. */
-   printf("Server: got message: %zu\n", nbytes);
+   //printf("Server: got message: %u\n", nbytes);
    if ( nbytes ){
       for ( i = 0; i < nbytes; i++ ){
-         printf("%02X", payload[i] & 0xFF);
+         //printf("%02X", payload[i] & 0xFF);
       }
+      *nBytes = nbytes;
    }
-   printf("\n");
-   fflush(NULL);
+}
+
+void closeSocket (int socket)
+{
+#ifdef WIN32
+   WSACleanup();
+#endif
 }
