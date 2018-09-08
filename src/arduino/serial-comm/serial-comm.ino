@@ -97,29 +97,26 @@ void doCommandVoice (int command)
   {
     case SERIAL_COMMAND_VOICE_LIGHTSON:
       turnLightsOn(0);
-      //digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = HIGH);
-      //digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = HIGH);
       DEBUGLN("{}VOICE: command lights on");
       break;
     case SERIAL_COMMAND_VOICE_LIGHTSOFF:
-      digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = LOW);
-      digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = LOW);
+      turnLightsOff(0);
       DEBUGLN("{}VOICE: command lights off");
       break;
     case SERIAL_COMMAND_VOICE_LIGHTSON1:
-      digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = HIGH);
+      turnLightsOn(1);
       DEBUGLN("{}VOICE: command lights on group 1");
       break;
     case SERIAL_COMMAND_VOICE_LIGHTSOFF1:
-      digitalWrite(PIN_LIGHTS_GROUP1, g_light_one_state = LOW);
+      turnLightsOff(1);
       DEBUGLN("{}VOICE: command lights off group 1");
       break;
     case SERIAL_COMMAND_VOICE_LIGHTSON2:
-      digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = HIGH);
+      turnLightsOn(2);
       DEBUGLN("{}VOICE: command lights on group 2");
       break;
     case SERIAL_COMMAND_VOICE_LIGHTSOFF2:
-      digitalWrite(PIN_LIGHTS_GROUP2, g_light_two_state = LOW);
+      turnLightsOff(2);
       DEBUGLN("{}VOICE: command lights off group 2");
       break;
   }  
