@@ -1,5 +1,10 @@
 #include <Ethernet.h>
 #include <EthernetUdp.h>
+//#define PX4
+#ifdef PX4
+#include <Wire.h>
+#include <PX4Flow.h>
+#endif
 #include "commands.h"
 
 #define DEBUG         Serial.print
@@ -7,11 +12,15 @@
 
 #define PIN_LIGHTS_GROUP1   2
 #define PIN_LIGHTS_GROUP2   3
+#define SCALE_FACTOR 1.5
+#define MAX_OUTPUT 255
+#define MIN_OUTPUT 0
+#define ITERATION 10
 
-#define ULTRASOUND_DELTA_THRESHOLD 128
+#define ULTRASOUND_DELTA_THRESHOLD 100
 
 unsigned char g_ultraSoundValues[] = {0, 0, 0, 0, 0, 0, 0, 0}; // 8 sensors, each one with range 0-256
-unsigned char g_ultraSoundLastValues[] = {100, 20, 30, 48, 50, 68, 170, 89}; // last values
+unsigned char g_ultraSoundLastValues[] = {0, 0, 0, 0, 0, 0, 0, 0}; // last values
 unsigned char g_lightSensor = 1;
 unsigned char g_pirSensor = 1;
 unsigned char g_light_one_state = LOW;
@@ -29,6 +38,17 @@ IPAddress ipUltrasound(192, 168, 2, 2);
 unsigned int portUltrasound = 8888;
 EthernetUDP Udp;
 
+int iterations = 0;
+int motion_intensity_tmp_x = 0;
+int motion_intensity_tmp_y = 0;
+int motion_intensity = 0;
+int number_of_sums = 0;
+int flow_x_sum = 0;
+int flow_y_sum = 0;
+#ifdef PX4
+PX4Flow sensor = PX4Flow(); 
+#endif
+
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(PIN_LIGHTS_GROUP1, OUTPUT);
@@ -40,6 +60,11 @@ void setup() {
   Ethernet.init(10);
   Ethernet.begin(mac, ip);
   Udp.begin(portUltrasound);
+
+#ifdef PX4
+  // Initialize the I2C bus
+  Wire.begin();
+#endif  
 }
 
 void turnLightsOn (int group){
@@ -81,12 +106,16 @@ int handleLightStatus()
 
    for (i = 0, leni = 8; i < leni ; ++i){
       sensorValue = g_ultraSoundValues[i];
-      deltaValue =  g_ultraSoundValues[i] - g_ultraSoundLastValues[i];
-      if ( deltaValue >= ULTRASOUND_DELTA_THRESHOLD ){
+      deltaValue =  abs(g_ultraSoundValues[i] - g_ultraSoundLastValues[i]);
+      if ( (deltaValue >= ULTRASOUND_DELTA_THRESHOLD) && (i != 3) ){
+         Serial.print("{}TRIGGER ON sensor ");
+         Serial.print(i);
+         Serial.print(" delta ");
+         Serial.println(deltaValue);
          lightsOnOff = 1;
          // Updates last value
-         g_ultraSoundLastValues[i] = g_ultraSoundValues[i];
       }
+      g_ultraSoundLastValues[i] = g_ultraSoundValues[i];
    }
 
    if ( 1 == lightsOnOff ){
@@ -216,15 +245,27 @@ void loop() {
         Udp.endPacket();
         break;
       case 'S': // Informacao que vem dos ultrasons
-        Serial.print("Update sensors: ");
+        Serial.print("Update sensors:");
         if ( packetSize >= 7 )
         {
           memcpy(g_ultraSoundValues, response + 1, 5);
-          for ( i = 1; i < 7; ++i )
+          Serial.print(" S0:");
+          Serial.print(response[1], DEC);
+          Serial.print(" S1:");
+          Serial.print(response[2], DEC);
+          Serial.print(" S2:");
+          Serial.print(response[4], DEC);
+          Serial.print(" S3:");
+          Serial.print(response[3], DEC);
+          Serial.print(" S4:");
+          Serial.print(response[5], DEC);
+          Serial.print(" SL:");
+          Serial.print(response[6], DEC);
+          /*for ( i = 1; i < 7; ++i )
           {
             Serial.print(response[i], DEC);
             Serial.print(" ");
-          }
+          }*/
         }
         if ( packetSize > 7 )
         {
@@ -269,6 +310,52 @@ void loop() {
         break;
     }
   }
+#ifdef PX4
+  if ( 0 )
+  {
+  sensor.update();
+  flow_x_sum = sensor.pixel_flow_x_sum();
+  flow_y_sum = sensor.pixel_flow_y_sum();
+  DEBUG("{}OPT: read ");
+  DEBUG(flow_x_sum);
+  DEBUG(" ");
+  DEBUG(flow_y_sum);
+  DEBUG(" -> motion ");
+  if ( (iterations % ITERATION) == 0) 
+  {
+     motion_intensity += ((motion_intensity_tmp_x + motion_intensity_tmp_y))/(ITERATION);
+    if(motion_intensity < MIN_OUTPUT)
+    {
+      motion_intensity = MIN_OUTPUT;
+    }
+    else if(motion_intensity > MAX_OUTPUT)
+    {
+      motion_intensity = MAX_OUTPUT;
+    }
+   
+    /*
+     * Reset to avarage varaibles
+     */
+    motion_intensity_tmp_x = 0;
+    motion_intensity_tmp_y = 0;
+    number_of_sums = 0;
+    iterations = 0;
+
+    //Update 
+    g_pirSensor = (motion_intensity > 50)?(1):(0);
+    motion_intensity = 0;
+    DEBUGLN(motion_intensity);
+  }
+  else
+  {
+    /*
+     * Sum to avarage
+     */
+    motion_intensity_tmp_x = motion_intensity_tmp_x + (abs(flow_x_sum)*SCALE_FACTOR); 
+    motion_intensity_tmp_y = motion_intensity_tmp_y + (abs(flow_y_sum)*SCALE_FACTOR);
+  }
+  }
+#endif  
   Serial.flush();
   delay(10);
 }
